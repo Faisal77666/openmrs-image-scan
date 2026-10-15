@@ -4,6 +4,7 @@ on: workflow_dispatch
 jobs:
   scan:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -11,19 +12,56 @@ jobs:
           - openmrs/openmrs-reference-application-distro:latest
           - openmrs/openmrs-reference-application-3-gateway:demo
           - openmrs/openmrs-reference-application-3-frontend:demo
+          - openmrs/openmrs-reference-application-3-backend:demo
+          - openmrs/openmrs-reference-application-3-backend:3.8.x-no-demo
     steps:
-      - name: Scan
+      # NOTE: pin trivy-action to a release tag or commit SHA before proposing this to OpenMRS
+      - name: Scan (all findings)
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ matrix.image }}
           scanners: vuln,secret
           severity: HIGH,CRITICAL
           format: table
-          output: result.txt
+          output: result-all.txt
           exit-code: 0
-      - name: Show result
-        run: cat result.txt
+
+      - name: Scan (fixable only)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ matrix.image }}
+          scanners: vuln,secret
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: table
+          output: result-fixable.txt
+          exit-code: 0
+
+      - name: Summarize
+        if: always()
+        run: |
+          {
+            echo "### ${{ matrix.image }}"
+            echo "**All HIGH/CRITICAL:**"
+            echo '```'
+            grep -E '^Total:' result-all.txt || echo "no findings reported"
+            echo '```'
+            echo "**Fixable only:**"
+            echo '```'
+            grep -E '^Total:' result-fixable.txt || echo "no findings reported"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report summary tables
+        if: always()
+        run: |
+          echo "=== ALL ==="; sed -n '1,/^Legend/p' result-all.txt
+          echo "=== FIXABLE ==="; sed -n '1,/^Legend/p' result-fixable.txt
+
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: trivy-${{ strategy.job-index }}
-          path: result.txt
+          path: |
+            result-all.txt
+            result-fixable.txt
