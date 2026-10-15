@@ -9,8 +9,8 @@ jobs:
       matrix:
         image:
           - openmrs/openmrs-reference-application-distro:latest
-          - openmrs/openmrs-reference-application-3-gateway:latest
-          - openmrs/openmrs-reference-application-3-frontend:latest
+          - openmrs/openmrs-reference-application-3-gateway:demo
+          - openmrs/openmrs-reference-application-3-frontend:demo
     steps:
       - name: Scan
         uses: aquasecurity/trivy-action@master
