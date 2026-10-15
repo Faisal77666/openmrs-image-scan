@@ -1,0 +1,29 @@
+name: scan-openmrs-images
+on: workflow_dispatch
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - openmrs/openmrs-reference-application-distro:latest
+          - openmrs/openmrs-reference-application-3-gateway:latest
+          - openmrs/openmrs-reference-application-3-frontend:latest
+    steps:
+      - name: Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ matrix.image }}
+          scanners: vuln,secret
+          severity: HIGH,CRITICAL
+          format: table
+          output: result.txt
+          exit-code: 0
+      - name: Show result
+        run: cat result.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: trivy-${{ strategy.job-index }}
+          path: result.txt
